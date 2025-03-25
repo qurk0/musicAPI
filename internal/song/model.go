@@ -13,8 +13,11 @@ type Song struct {
 
 func NewSong(songName string, groupName string) *Song {
 	song := &Song{
-		SongName:  songName,
-		GroupName: groupName,
+		SongName:    songName,
+		GroupName:   groupName,
+		ReleaseDate: "",
+		Text:        "",
+		Link:        "",
 	}
 
 	// Запрос на API для остальных данных
