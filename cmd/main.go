@@ -23,6 +23,7 @@ func main() {
 	// Handler || Хэндлеры || Уровень в API для обработки запросов
 	song.NewSongHandler(router, song.SongHandlerDeps{
 		SongRepository: songRepo,
+		Conf:           conf,
 	})
 
 	// Middlewares || Миддлвэйры || Уровень в API для выполнения каких-то задач в промежуточных этапах обработки

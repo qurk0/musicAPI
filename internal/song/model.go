@@ -1,6 +1,13 @@
 package song
 
-import "gorm.io/gorm"
+import (
+	"encoding/json"
+	"errors"
+	"log"
+	"net/http"
+
+	"gorm.io/gorm"
+)
 
 type Song struct {
 	gorm.Model
@@ -11,16 +18,37 @@ type Song struct {
 	Link        string `json:"link"`
 }
 
-func NewSong(songName string, groupName string) *Song {
-	song := &Song{
-		SongName:    songName,
-		GroupName:   groupName,
-		ReleaseDate: "",
-		Text:        "",
-		Link:        "",
-	}
+func NewSong(songName string, groupName string, addr string) (*Song, error) {
 
 	// Запрос на API для остальных данных
 
-	return song
+	resp, err := http.Get(addr + "/info?group=" + groupName + "&song=" + songName)
+	log.Printf("DEBUG: %s\n", songName)
+	if err != nil {
+		log.Println("DEBUG: Punkt 1.1")
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Println("DEBUG: Punkt 1.2")
+		return nil, errors.New(resp.Status + ": Не удалось получить данные")
+	}
+
+	var data SongCreateResponce
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		log.Println("DEBUG: Punkt 1.3")
+		return nil, errors.New("500 Internal Server Error: не удалось сохранить песню в базе")
+	}
+
+	song := &Song{
+		SongName:    songName,
+		GroupName:   groupName,
+		ReleaseDate: data.ReleaseDate,
+		Text:        data.Text,
+		Link:        data.Link,
+	}
+
+	return song, nil
 }
