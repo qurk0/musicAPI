@@ -3,10 +3,13 @@ package song
 import (
 	"log"
 	"musicLib/configs"
+	"musicLib/pkg/request"
 	"musicLib/pkg/responce"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 type SongHandler struct {
@@ -28,6 +31,7 @@ func NewSongHandler(router *http.ServeMux, deps SongHandlerDeps) {
 	router.HandleFunc("POST /songs", handler.Create())
 	router.HandleFunc("GET /songs/all", handler.GetAll())
 	router.HandleFunc("GET /songs", handler.GetText())
+	router.HandleFunc("PATCH /songs", handler.Update())
 }
 
 func (handler *SongHandler) Create() http.HandlerFunc {
@@ -159,4 +163,42 @@ func parseQuery(r *http.Request) (string, string, int, int, error) {
 	}
 
 	return group, name, page, size, nil
+}
+
+func (handler *SongHandler) Update() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := request.HandleBody[SongUpdateRequest](&w, r)
+		if err != nil {
+			return
+		}
+
+		group := r.URL.Query().Get("group")
+		name := r.URL.Query().Get("song")
+
+		if (group == "") || (name == "") {
+			http.Error(w, "No group or song name", http.StatusBadRequest)
+			return
+		}
+
+		song, err := handler.SongRepository.GetSong(group, name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		song, err = handler.SongRepository.Update(&Song{
+			Model:       gorm.Model{ID: song.ID},
+			Text:        body.Text,
+			SongName:    body.SongName,
+			GroupName:   body.GroupName,
+			Link:        body.Link,
+			ReleaseDate: body.ReleaseDate,
+		})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		responce.Json(w, song, http.StatusOK)
+	}
 }

@@ -27,3 +27,11 @@ type SongTextResponce struct {
 	Size       int      `json:"size"`
 	Text       []string `json:"text"`
 }
+
+type SongUpdateRequest struct {
+	SongName    string `json:"songName"`
+	GroupName   string `json:"groupName"`
+	Text        string `json:"text"`
+	Link        string `json:"link"`
+	ReleaseDate string `json:"releaseDate"`
+}

@@ -56,7 +56,6 @@ func (repo *SongRepository) GetAll(group, name, releaseDate string, page, size i
 }
 
 func (repo *SongRepository) GetSong(group, name string) (*Song, error) {
-	log.Printf("DEBUG: %s %s", group, name)
 	var song Song
 	result := repo.Db.DB.Where("group_name = ? AND song_name = ?", group, name).Find(&song)
 
@@ -64,4 +63,12 @@ func (repo *SongRepository) GetSong(group, name string) (*Song, error) {
 		return nil, result.Error
 	}
 	return &song, nil
+}
+
+func (repo *SongRepository) Update(song *Song) (*Song, error) {
+	result := repo.Db.DB.Updates(song)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return song, nil
 }
