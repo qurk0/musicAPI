@@ -33,7 +33,7 @@ func NewSong(songName string, groupName string, addr string) (*Song, error) {
 		return nil, errors.New(resp.Status + ": Не удалось получить данные")
 	}
 
-	var data SongCreateResponce
+	var data SongCreateApiResponce
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
 		return nil, errors.New("500 Internal Server Error: не удалось сохранить песню в базе")

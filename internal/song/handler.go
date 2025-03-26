@@ -28,9 +28,9 @@ func NewSongHandler(router *http.ServeMux, deps SongHandlerDeps) {
 		Conf:           deps.Conf,
 	}
 
-	router.HandleFunc("POST /songs", handler.Create())
-	router.HandleFunc("GET /songs/all", handler.GetAll())
-	router.HandleFunc("GET /songs", handler.GetText())
+	router.HandleFunc("POST /songs", handler.Create())    // Done
+	router.HandleFunc("GET /songs/all", handler.GetAll()) // Done
+	router.HandleFunc("GET /songs", handler.GetText())    // Done
 	router.HandleFunc("PATCH /songs/{id}", handler.Update())
 	router.HandleFunc("DELETE /songs/{id}", handler.Delete())
 }
@@ -53,7 +53,11 @@ func (handler *SongHandler) Create() http.HandlerFunc {
 			return
 		}
 
-		responce.Json(w, createdSong, http.StatusCreated)
+		responce.Json(w, SongCreateResponce{
+			SongName:  createdSong.SongName,
+			GroupName: createdSong.GroupName,
+			Link:      createdSong.Link,
+		}, http.StatusCreated)
 	}
 }
 
@@ -166,7 +170,7 @@ func (handler *SongHandler) Update() http.HandlerFunc {
 			return
 		}
 
-		song, err := handler.SongRepository.Update(&Song{
+		err = handler.SongRepository.Update(&Song{
 			Model:       gorm.Model{ID: uint(id)},
 			Text:        body.Text,
 			SongName:    body.SongName,
@@ -179,7 +183,7 @@ func (handler *SongHandler) Update() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		responce.Json(w, song, http.StatusOK)
+		responce.Json(w, nil, http.StatusOK)
 	}
 }
 

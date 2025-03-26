@@ -1,9 +1,15 @@
 package song
 
-type SongCreateResponce struct {
+type SongCreateApiResponce struct {
 	Text        string `json:"text"`
 	Link        string `json:"link"`
 	ReleaseDate string `json:"releaseDate"`
+}
+
+type SongCreateResponce struct {
+	SongName  string `json:"songName"`
+	GroupName string `json:"groupName"`
+	Link      string `json:"link"`
 }
 
 type SongAllResponce struct {
@@ -14,6 +20,7 @@ type SongAllResponce struct {
 }
 
 type SongResponce struct {
+	ID          uint   `json:"ID"`
 	SongName    string `json:"songName"`
 	GroupName   string `json:"groupName"`
 	ReleaseDate string `json:"releaseDate"`

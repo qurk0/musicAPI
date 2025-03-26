@@ -61,18 +61,18 @@ func (repo *SongRepository) GetSong(group, name string) (*Song, error) {
 	return &song, nil
 }
 
-func (repo *SongRepository) Update(song *Song) (*Song, error) {
+func (repo *SongRepository) Update(song *Song) error {
 	result := repo.Db.DB.Updates(song)
 	if result.Error != nil {
-		return nil, result.Error
+		return result.Error
 	}
 
-	song, err := repo.GetById(song.ID)
+	_, err := repo.GetById(song.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return song, nil
+	return nil
 }
 
 func (repo *SongRepository) GetById(id uint) (*Song, error) {
