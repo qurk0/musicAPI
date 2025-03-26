@@ -20,3 +20,10 @@ type SongResponce struct {
 	Text        string `json:"text"`
 	Link        string `json:"link"`
 }
+
+type SongTextResponce struct {
+	TotalCount int64    `json:"totalCount"`
+	Page       int      `json:"page"`
+	Size       int      `json:"size"`
+	Text       []string `json:"text"`
+}

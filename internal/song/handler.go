@@ -6,6 +6,7 @@ import (
 	"musicLib/pkg/responce"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type SongHandler struct {
@@ -26,6 +27,7 @@ func NewSongHandler(router *http.ServeMux, deps SongHandlerDeps) {
 
 	router.HandleFunc("POST /songs", handler.Create())
 	router.HandleFunc("GET /songs/all", handler.GetAll())
+	router.HandleFunc("GET /songs", handler.GetText())
 }
 
 func (handler *SongHandler) Create() http.HandlerFunc {
@@ -34,14 +36,12 @@ func (handler *SongHandler) Create() http.HandlerFunc {
 		name := r.URL.Query().Get("song")
 		song, err := NewSong(name, group, handler.Conf.Adress.ApiAddr)
 		if err != nil {
-			log.Println("DEBUG: Punkt 1")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		createdSong, err := handler.SongRepository.Create(song)
 		if err != nil {
-			log.Println("DEBUG: Punkt 2")
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -50,38 +50,10 @@ func (handler *SongHandler) Create() http.HandlerFunc {
 	}
 }
 
-func parseQuery(r *http.Request) (string, string, string, int, int, error) {
-	group := r.URL.Query().Get("group")
-	name := r.URL.Query().Get("song")
-	releaseDate := r.URL.Query().Get("release_date")
-	pageStr := r.URL.Query().Get("page")
-	var page, size int
-	var err error
-	if pageStr == "" {
-		page = 0
-	} else {
-		page, err = strconv.Atoi(pageStr)
-		if err != nil {
-			return "", "", "", 0, 0, err
-		}
-	}
-
-	sizeStr := r.URL.Query().Get("size")
-	if sizeStr == "" {
-		size = 0
-	} else {
-		size, err = strconv.Atoi(sizeStr)
-		if err != nil {
-			return "", "", "", 0, 0, err
-		}
-	}
-
-	return group, name, releaseDate, page, size, nil
-}
-
 func (handler *SongHandler) GetAll() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		group, name, releaseDate, page, size, err := parseQuery(r)
+		releaseDate := r.URL.Query().Get("release_date")
+		group, name, page, size, err := parseQuery(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -97,7 +69,7 @@ func (handler *SongHandler) GetAll() http.HandlerFunc {
 
 		songs, totalCount, err := handler.SongRepository.GetAll(group, name, releaseDate, page, size)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 
@@ -110,4 +82,81 @@ func (handler *SongHandler) GetAll() http.HandlerFunc {
 
 		responce.Json(w, resp, http.StatusOK)
 	}
+}
+
+func (handler *SongHandler) GetText() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		group, name, page, size, err := parseQuery(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+		if (group == "") || (name == "") {
+			http.Error(w, "No group or song name", http.StatusBadRequest)
+			return
+		}
+
+		song, err := handler.SongRepository.GetSong(group, name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		text := strings.Split(song.Text, "\n\n")
+
+		if size == 0 {
+			size = len(text)
+		}
+		if page == 0 {
+			page = 1
+		}
+
+		offset := (page - 1) * size
+		if offset > len(text) {
+			offset = len(text)
+		}
+
+		end := offset + size
+		if end > len(text) {
+			end = len(text)
+		}
+
+		log.Println(text[offset:end])
+
+		resp := SongTextResponce{
+			TotalCount: int64(len(text)),
+			Size:       size,
+			Page:       page,
+			Text:       text[offset:end],
+		}
+
+		responce.Json(w, resp, http.StatusOK)
+	}
+}
+
+func parseQuery(r *http.Request) (string, string, int, int, error) {
+	group := r.URL.Query().Get("group")
+	name := r.URL.Query().Get("song")
+	pageStr := r.URL.Query().Get("page")
+	var page, size int
+	var err error
+	if pageStr == "" {
+		page = 0
+	} else {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil {
+			return "", "", 0, 0, err
+		}
+	}
+
+	sizeStr := r.URL.Query().Get("size")
+	if sizeStr == "" {
+		size = 0
+	} else {
+		size, err = strconv.Atoi(sizeStr)
+		if err != nil {
+			return "", "", 0, 0, err
+		}
+	}
+
+	return group, name, page, size, nil
 }

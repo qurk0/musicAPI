@@ -25,20 +25,17 @@ func NewSong(songName string, groupName string, addr string) (*Song, error) {
 	resp, err := http.Get(addr + "/info?group=" + groupName + "&song=" + songName)
 	log.Printf("DEBUG: %s\n", songName)
 	if err != nil {
-		log.Println("DEBUG: Punkt 1.1")
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		log.Println("DEBUG: Punkt 1.2")
 		return nil, errors.New(resp.Status + ": Не удалось получить данные")
 	}
 
 	var data SongCreateResponce
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
-		log.Println("DEBUG: Punkt 1.3")
 		return nil, errors.New("500 Internal Server Error: не удалось сохранить песню в базе")
 	}
 
