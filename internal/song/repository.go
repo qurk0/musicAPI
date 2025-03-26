@@ -1,7 +1,6 @@
 package song
 
 import (
-	"log"
 	"musicLib/pkg/db"
 )
 
@@ -20,9 +19,6 @@ func (repo *SongRepository) Create(song *Song) (*Song, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
-
-	log.Printf("Name - %s\nGroup - %s\nText - %s\nReleaseDate - %s\nLink - %s\n", song.SongName, song.GroupName, song.Text, song.ReleaseDate, song.Link)
-
 	return song, nil
 }
 
@@ -70,5 +66,27 @@ func (repo *SongRepository) Update(song *Song) (*Song, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
+
+	song, err := repo.GetById(song.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	return song, nil
+}
+
+func (repo *SongRepository) GetById(id uint) (*Song, error) {
+	var song Song
+	result := repo.Db.DB.First(&song, id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &song, nil
+}
+
+func (repo *SongRepository) Delete(id uint) error {
+	err := repo.Db.Delete(&Song{}, id)
+
+	return err.Error
 }

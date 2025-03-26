@@ -31,13 +31,16 @@ func NewSongHandler(router *http.ServeMux, deps SongHandlerDeps) {
 	router.HandleFunc("POST /songs", handler.Create())
 	router.HandleFunc("GET /songs/all", handler.GetAll())
 	router.HandleFunc("GET /songs", handler.GetText())
-	router.HandleFunc("PATCH /songs", handler.Update())
+	router.HandleFunc("PATCH /songs/{id}", handler.Update())
+	router.HandleFunc("DELETE /songs/{id}", handler.Delete())
 }
 
 func (handler *SongHandler) Create() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		group := r.URL.Query().Get("group")
 		name := r.URL.Query().Get("song")
+
+		log.Printf("DEBUG: Вызван Create, данные group - %s, song - %s были прочитаны\n", group, name)
 		song, err := NewSong(name, group, handler.Conf.Adress.ApiAddr)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -58,6 +61,11 @@ func (handler *SongHandler) GetAll() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		releaseDate := r.URL.Query().Get("release_date")
 		group, name, page, size, err := parseQuery(r)
+
+		log.Printf("DEBUG: Вызван GetAll, данные group - %s, song - %s были прочитаны\n", group, name)
+		log.Printf("DEBUG: Вызван GetAll, данные releaseDate - %s были прочитаны\n", releaseDate)
+		log.Printf("DEBUG: Вызван GetAll, данные page - %d, size - %d были прочитаны\n", page, size)
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -72,6 +80,7 @@ func (handler *SongHandler) GetAll() http.HandlerFunc {
 		}
 
 		songs, totalCount, err := handler.SongRepository.GetAll(group, name, releaseDate, page, size)
+		log.Printf("DEBUG: POST, с учётом фильтров найдено %d объектов\n", totalCount)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -91,6 +100,10 @@ func (handler *SongHandler) GetAll() http.HandlerFunc {
 func (handler *SongHandler) GetText() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		group, name, page, size, err := parseQuery(r)
+
+		log.Printf("DEBUG: Вызван GetText, данные group - %s, song - %s были прочитаны\n", group, name)
+		log.Printf("DEBUG: Вызван GetText на текст песни с пагинацией, данные page - %d, size - %d были прочитаны\n", page, size)
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
@@ -106,6 +119,7 @@ func (handler *SongHandler) GetText() http.HandlerFunc {
 		}
 
 		text := strings.Split(song.Text, "\n\n")
+		log.Printf("DEBUG: В методе GetText была найдена песня %s от %s. Количество куплетов - %d", name, group, len(text))
 
 		if size == 0 {
 			size = len(text)
@@ -137,6 +151,62 @@ func (handler *SongHandler) GetText() http.HandlerFunc {
 	}
 }
 
+func (handler *SongHandler) Update() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := request.HandleBody[SongUpdateRequest](&w, r)
+		if err != nil {
+			return
+		}
+
+		idRaw := r.PathValue("id")
+		id, err := strconv.ParseUint(idRaw, 10, 64)
+		log.Printf("DEBUG: Был вызван метод Update, ID %d был прочитан", id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		song, err := handler.SongRepository.Update(&Song{
+			Model:       gorm.Model{ID: uint(id)},
+			Text:        body.Text,
+			SongName:    body.SongName,
+			GroupName:   body.GroupName,
+			Link:        body.Link,
+			ReleaseDate: body.ReleaseDate,
+		})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		responce.Json(w, song, http.StatusOK)
+	}
+}
+
+func (handler *SongHandler) Delete() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idRaw := r.PathValue("id")
+		id, err := strconv.ParseUint(idRaw, 10, 64)
+		log.Printf("DEBUG: Был вызван метод Delete, ID %d был прочитан", id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		_, err = handler.SongRepository.GetById(uint(id))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		}
+
+		err = handler.SongRepository.Delete(uint(id))
+		if err != nil {
+			responce.Json(w, err, http.StatusInternalServerError)
+			return
+		}
+		responce.Json(w, "Deleted", 200)
+	}
+}
+
 func parseQuery(r *http.Request) (string, string, int, int, error) {
 	group := r.URL.Query().Get("group")
 	name := r.URL.Query().Get("song")
@@ -163,42 +233,4 @@ func parseQuery(r *http.Request) (string, string, int, int, error) {
 	}
 
 	return group, name, page, size, nil
-}
-
-func (handler *SongHandler) Update() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := request.HandleBody[SongUpdateRequest](&w, r)
-		if err != nil {
-			return
-		}
-
-		group := r.URL.Query().Get("group")
-		name := r.URL.Query().Get("song")
-
-		if (group == "") || (name == "") {
-			http.Error(w, "No group or song name", http.StatusBadRequest)
-			return
-		}
-
-		song, err := handler.SongRepository.GetSong(group, name)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-
-		song, err = handler.SongRepository.Update(&Song{
-			Model:       gorm.Model{ID: song.ID},
-			Text:        body.Text,
-			SongName:    body.SongName,
-			GroupName:   body.GroupName,
-			Link:        body.Link,
-			ReleaseDate: body.ReleaseDate,
-		})
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		responce.Json(w, song, http.StatusOK)
-	}
 }
